@@ -79,8 +79,9 @@ time series models and several more (@HastieTrevor).
 
 # Regression Trees
 
-Decision are flexible methods that be applied to both regression and 
-classification problems. It is based on the estimation of a series of binary conditional 
+Decision trees are flexible non-parametric methods that be can
+applied to both regression and classification problems. 
+It is based on the estimation of a series of binary conditional 
 statements (`if-else`) on the predictors space. As an illustration, 
 let us get back to a classification problem demonstrated in Figure 1.
 On the left we see the plot of two predictor variables $x_1$ and $x_2$ 
@@ -154,7 +155,7 @@ tree for reasons that will be explained in the next section.
 
 ## R Code
 
-The following `chunk` reprensets one way of implementing regression 
+The following `chunk` represents one way of implementing regression 
 trees in R. The function receives the formula of the model and the
 data and returns a list of the data with the prediction, the 
 variables where the splits happened and the cutpoints.
@@ -192,7 +193,7 @@ sum_of_squares <- function(cut_point, variable_index, data_ss, X){
 my_trees <- function(formula, your_data){
   
   # Taking some action if the data has too many NAs
-  if(dim(na.omit(your_data)) < 10){
+  if(dim(na.omit(your_data))[1] < 10){
     stop("Your data has too many NAs.")
   }
   # Removing the intercept
@@ -373,6 +374,68 @@ sum((mtcars$mpg - tree_cars$model_data$prediction)^2)
 ```
 
 
+### Predicting for the tree
+
+The next `chunk` shows a function that predicts for the previous model. 
+A random sample from the `mtcars` was selected to demonstrate its use.  
+
+```{r}
+predict_tree <- function(model, newdata){
+  data <- newdata
+  vars <- model$vars
+  cuts <- model$cuts
+  nodes <- model$nodes
+  parents <- model$parents
+  means <- data.frame(node = nodes,
+                      prediction = model$means)
+  
+  data$node <- "node 1"
+  
+  counter <- 0
+  iter <-  2
+  i = 2
+  
+  for(i in 2:(length(vars)+1)){
+    
+    if(i == 2){
+      
+      data <- data %>% 
+        mutate(node = ifelse(!!sym(vars[i-1]) > cuts[i-1],
+                             paste(node, iter + 1), paste(node, iter)))
+      
+      counter <- counter + 1
+      iter <-  iter + 1
+      
+    } else {
+      # Creating the next splits and changing the auxiliar variables 
+      data <- data %>% 
+        mutate(node = ifelse(node == parents[i-1],
+                             ifelse(!!sym(vars[i-1]) > cuts[i-1],
+                                    paste(node, iter+counter+1), paste(node, iter+counter)), 
+                             paste(node)))
+      counter = counter + 1
+      iter = iter + 1
+    }
+  }
+  
+  
+  
+  predicted <- data %>% 
+    full_join(means, by = "node") %>% 
+    pull(prediction)
+  
+  return(predicted)
+}
+
+# Sampling from the mtcars data
+new_data <- mtcars %>% 
+  sample_n(20)
+
+predictions <- predict_tree(tree_cars, newdata = new_data)
+predictions
+```
+
+
 
 # Random Forests
 
@@ -478,6 +541,26 @@ rf_cars <- rf(formula = mpg ~ cyl + disp + hp + drat +
 sum((mtcars$mpg - rf_cars$prediction)^2)
 ```
 
+In the following we have the function that predicts a response vector 
+for the random forest model. The new data used is the same as for the 
+tree model.
+
+```{r}
+predict_rf <- function(model, newdata){
+  
+  number_of_trees <- lengths(model)[1]
+  prediction <- model$trees_result %>% 
+    map(predict_tree, newdata = newdata) %>% 
+    as.data.frame() %>% 
+    mutate(final_prediction = rowSums(.)/number_of_trees) %>% 
+    pull(final_prediction)
+  
+  return(prediction)
+}
+
+predict_rf(rf_cars, new_data)
+```
+
 By varying the number of trees in the random forest, we can check what is 
 the residual sum of squares for each value. Figure 3 shows results for 
 different numbers of trees, but the plot does not seem to produce a
@@ -514,6 +597,22 @@ results %>%
 ```
 
 
+# Conclusions and final remarks
+
+For this project, the task was to implement a full random forest model. To 
+do that, the first task was to implement the decision trees, 
+once a random forest is a big combination  of them. After that, it is
+necessary to create a big set of trees and use their average to produce
+a random forest. The code shown here implements a fit function and
+prediction function for both the trees and random forests models. 
+
+This code is definitely not final and improvements should be made. First, 
+the decision tree function needs to be faster and allow for the tree
+to split the same variable more than once in the model. With that, the
+random forest model will also be more efficient and correct. The complexity
+parameter of the tree, which was not discussed here, is a fundamental 
+detail that needs to be included. The prediction functions could use a 
+little more of efficiency too. 
 
 
 # References
