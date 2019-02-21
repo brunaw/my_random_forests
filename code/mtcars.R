@@ -24,11 +24,13 @@ rf_cars <- rf(formula = mpg ~ cyl + disp + hp + drat +
               rf_data = mtcars)
 
 # Finding the rss
+
 sum((mtcars$mpg - rf_cars$prediction)^2)
 
 # Evaluating the number of trees
 seq_number_trees <- seq(2, 100, by = 5)
 
+formula = formula = mpg ~ cyl + disp + hp + drat + wt + qsec + am + gear + carb
 sequence_rf <- seq_number_trees %>% map(rf, formula = mpg ~ cyl + disp + hp + drat +
                                           wt + qsec + am + gear + carb, rf_data = mtcars)
 

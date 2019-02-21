@@ -5,8 +5,7 @@
 #----------------------------------------------------------------------#
 library(tidyverse)
 
-predict_tree <- function(model, newdata){
-  data <- newdata
+predict_tree <- function(model, da){
   vars <- model$vars
   cuts <- model$cuts
   nodes <- model$nodes
@@ -15,41 +14,32 @@ predict_tree <- function(model, newdata){
     node = nodes,
     prediction = model$means)
   
-  data$node <- "node 1"
-  
+  da <- da %>% mutate(node = "root")
   counter <- 0
-  iter <-  2
-  i = 2
   
   for(i in 2:(length(vars)+1)){
     
     if(i == 2){
-      
-      data <- data %>% 
+      da  <- da %>% 
         mutate(node = ifelse(!!sym(vars[i-1]) > cuts[i-1],
-                             paste(node, iter + 1), paste(node, iter)))
-      
+                             paste(node, vars[i-1], 1), 
+                             paste(node, vars[i-1], 2)))
       counter <- counter + 1
-      iter <-  iter + 1
-      
     } else {
       # Creating the next splits and changing the auxiliar variables 
-      data <- data %>% 
+      da <- da %>% 
         mutate(node = ifelse(node == parents[i-1],
                              ifelse(!!sym(vars[i-1]) > cuts[i-1],
-                                    paste(node, iter+counter+1), paste(node, iter+counter)), 
+                                    paste(node, vars[i-1], 1), 
+                                    paste(node, vars[i-1], 2)), 
                              paste(node)))
       counter = counter + 1
-      iter = iter + 1
     }
   }
   
-  
-  
-  predicted <- data %>% 
+  predicted <- da %>% 
     full_join(means, by = "node") %>% 
     pull(prediction)
   
   return(predicted)
 }
-
